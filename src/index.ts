@@ -1,9 +1,8 @@
-#!/usr/bin/env node
 import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { program } from "commander";
 
-import { appConfig } from "@repo/config/app.config";
+import { appConfig } from "@/config/app.config";
 
 import type { Resource } from "@/resources/resource";
 import { createServerWithTools } from "@/server";

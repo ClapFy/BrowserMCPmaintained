@@ -16,10 +16,12 @@ type Options = {
   version: string;
   tools: Tool[];
   resources: Resource[];
+  /** WebSocket listen port (defaults to mcp config). */
+  wsPort?: number;
 };
 
 export async function createServerWithTools(options: Options): Promise<Server> {
-  const { name, version, tools, resources } = options;
+  const { name, version, tools, resources, wsPort } = options;
   const context = new Context();
   const server = new Server(
     { name, version },
@@ -31,13 +33,19 @@ export async function createServerWithTools(options: Options): Promise<Server> {
     },
   );
 
-  const wss = await createWebSocketServer();
+  const wss = await createWebSocketServer(wsPort);
   wss.on("connection", (websocket) => {
-    // Close any existing connections
     if (context.hasWs()) {
-      context.ws.close();
+      const previous = context.ws;
+      previous.removeAllListeners();
+      previous.close();
     }
     context.ws = websocket;
+    websocket.on("close", () => {
+      if (context.hasWs() && context.ws === websocket) {
+        context.clearWs();
+      }
+    });
   });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -82,10 +90,11 @@ export async function createServerWithTools(options: Options): Promise<Server> {
     return { contents };
   });
 
+  const closeServer = server.close.bind(server);
   server.close = async () => {
-    await server.close();
     await wss.close();
     await context.close();
+    await closeServer();
   };
 
   return server;

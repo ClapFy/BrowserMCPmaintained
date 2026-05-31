@@ -4,24 +4,28 @@ import net from "node:net";
 export async function isPortInUse(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
-    server.once("error", () => resolve(true)); // Port is still in use
+    server.once("error", () => resolve(true));
     server.once("listening", () => {
-      server.close(() => resolve(false)); // Port is free
+      server.close(() => resolve(false));
     });
     server.listen(port);
   });
 }
 
-export function killProcessOnPort(port: number) {
+export function killProcessOnPort(port: number): void {
   try {
     if (process.platform === "win32") {
       execSync(
         `FOR /F "tokens=5" %a in ('netstat -ano ^| findstr :${port}') do taskkill /F /PID %a`,
+        { stdio: "ignore" },
       );
     } else {
-      execSync(`lsof -ti:${port} | xargs kill -9`);
+      execSync(`lsof -ti:${port} | xargs kill -9 2>/dev/null || true`, {
+        shell: "/bin/sh",
+        stdio: "ignore",
+      });
     }
-  } catch (error) {
-    console.error(`Failed to kill process on port ${port}:`, error);
+  } catch {
+    // No process on port — expected when the port is already free.
   }
 }
