@@ -1,6 +1,6 @@
 {
   "name": "@browsermcp/mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP server for browser automation using Browser MCP",
   "author": "Browser MCP",
   "homepage": "https://browsermcp.io",
@@ -11,7 +11,9 @@
     "node": ">=18"
   },
   "bin": {
-    "mcp-server-browsermcp": "dist/index.js"
+    "mcp-server-browsermcp": "dist/index.js",
+    "browsermcp": "dist/index.js",
+    "browsermcp-ws-daemon": "dist/ws-daemon.js"
   },
   "files": [
     "dist"

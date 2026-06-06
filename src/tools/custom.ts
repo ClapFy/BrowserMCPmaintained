@@ -1,5 +1,6 @@
 import { zodToJsonSchema } from "zod-to-json-schema";
 
+import { mcpConfig } from "@/config/mcp.config";
 import { GetConsoleLogsTool, ScreenshotTool } from "@/types/mcp/tool";
 
 import type { Tool } from "./tool";
@@ -15,7 +16,10 @@ export const getConsoleLogs: Tool = {
       "browser_get_console_logs",
       {},
     );
-    const text = consoleLogs.map((log) => JSON.stringify(log)).join("\n");
+    const text = consoleLogs
+      .slice(0, mcpConfig.limits.maxConsoleLogLines)
+      .map((log) => JSON.stringify(log))
+      .join("\n");
     return {
       content: [{ type: "text", text }],
     };

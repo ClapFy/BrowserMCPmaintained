@@ -1,5 +1,6 @@
 import { WebSocket } from "ws";
 
+import { BridgeClient } from "@/bridge/client";
 import { mcpConfig } from "@/config/mcp.config";
 import type {
   MessagePayload,
@@ -13,6 +14,7 @@ const noConnectionMessage = `No connection to browser extension. In order to pro
 
 export class Context {
   private _ws: WebSocket | undefined;
+  private _bridge: BridgeClient | undefined;
 
   get ws(): WebSocket {
     if (!this._ws) {
@@ -25,8 +27,16 @@ export class Context {
     this._ws = ws;
   }
 
+  set bridge(bridge: BridgeClient) {
+    this._bridge = bridge;
+  }
+
   hasWs(): boolean {
     return !!this._ws;
+  }
+
+  usesBridge(): boolean {
+    return !!this._bridge;
   }
 
   clearWs(): void {
@@ -36,23 +46,47 @@ export class Context {
   async sendSocketMessage<T extends MessageType<SocketMessageMap>>(
     type: T,
     payload: MessagePayload<SocketMessageMap, T>,
-    options: { timeoutMs?: number } = { timeoutMs: 30_000 },
+    options: { timeoutMs?: number } = { timeoutMs: mcpConfig.defaultRequestTimeoutMs },
   ): Promise<MessageResult<SocketMessageMap, T>> {
-    const { sendSocketMessage } = createSocketMessageSender(this.ws);
     try {
+      if (this._bridge) {
+        if (!this._bridge.connected) {
+          await this._bridge.close().catch(() => undefined);
+          this._bridge = await BridgeClient.connect();
+        }
+        return (await this._bridge.sendSocketMessage(
+          type,
+          payload,
+          options,
+        )) as MessageResult<SocketMessageMap, T>;
+      }
+
+      const { sendSocketMessage } = createSocketMessageSender(this.ws);
       return await sendSocketMessage<
         MessagePayload<SocketMessageMap, T>,
         MessageResult<SocketMessageMap, T>
       >(type, payload, options);
     } catch (e) {
-      if (e instanceof Error && e.message === mcpConfig.errors.noConnectedTab) {
-        throw new Error(noConnectionMessage);
+      if (e instanceof Error) {
+        if (e.message === mcpConfig.errors.noConnectedTab) {
+          throw new Error(noConnectionMessage);
+        }
+        if (e.message === mcpConfig.errors.bridgeDisconnected) {
+          throw new Error(noConnectionMessage);
+        }
+        if (e.message === "WebSocket is not open") {
+          throw new Error(noConnectionMessage);
+        }
       }
       throw e;
     }
   }
 
   async close() {
+    if (this._bridge) {
+      await this._bridge.close();
+      this._bridge = undefined;
+    }
     if (!this._ws) {
       return;
     }

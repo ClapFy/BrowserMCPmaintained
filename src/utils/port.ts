@@ -1,18 +1,42 @@
 import { execSync } from "node:child_process";
 import net from "node:net";
 
-export async function isPortInUse(port: number): Promise<boolean> {
+import { mcpConfig } from "@/config/mcp.config";
+import { assertAllowedPort } from "@/security/validation";
+
+const ALLOWED_KILL_PORTS: ReadonlySet<number> = new Set([
+  mcpConfig.defaultWsPort,
+  mcpConfig.bridgeControlPort,
+]);
+
+export async function isPortInUse(
+  port: number,
+  host = "127.0.0.1",
+): Promise<boolean> {
+  assertAllowedPort(port);
+
   return new Promise((resolve) => {
-    const server = net.createServer();
-    server.once("error", () => resolve(true));
-    server.once("listening", () => {
-      server.close(() => resolve(false));
+    const socket = net.createConnection({ port, host });
+    socket.setTimeout(500);
+    socket.once("connect", () => {
+      socket.destroy();
+      resolve(true);
     });
-    server.listen(port);
+    socket.once("timeout", () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.once("error", () => resolve(false));
   });
 }
 
 export function killProcessOnPort(port: number): void {
+  assertAllowedPort(port);
+
+  if (!ALLOWED_KILL_PORTS.has(port)) {
+    throw new Error(`Refusing to kill processes on port ${port}`);
+  }
+
   try {
     if (process.platform === "win32") {
       execSync(

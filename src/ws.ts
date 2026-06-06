@@ -1,7 +1,7 @@
 import { WebSocketServer } from "ws";
 
 import { mcpConfig } from "@/config/mcp.config";
-import { isPortInUse, killProcessOnPort } from "@/utils/port";
+import { isPortInUse } from "@/utils/port";
 import { wait } from "@/utils/wait";
 
 const PORT_WAIT_INTERVAL_MS = 100;
@@ -10,8 +10,6 @@ const PORT_WAIT_MAX_ATTEMPTS = 50;
 export async function createWebSocketServer(
   port: number = mcpConfig.defaultWsPort,
 ): Promise<WebSocketServer> {
-  killProcessOnPort(port);
-
   for (let attempt = 0; attempt < PORT_WAIT_MAX_ATTEMPTS; attempt++) {
     if (!(await isPortInUse(port))) {
       break;
@@ -24,5 +22,10 @@ export async function createWebSocketServer(
     await wait(PORT_WAIT_INTERVAL_MS);
   }
 
-  return new WebSocketServer({ port });
+  const wss = new WebSocketServer({ port, host: "127.0.0.1" });
+  await new Promise<void>((resolve, reject) => {
+    wss.once("listening", () => resolve());
+    wss.once("error", reject);
+  });
+  return wss;
 }

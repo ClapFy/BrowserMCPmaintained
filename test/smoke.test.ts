@@ -61,10 +61,6 @@ describe("tool schemas", () => {
 });
 
 describe("port utilities", () => {
-  it("killProcessOnPort does not throw on a free port", () => {
-    assert.doesNotThrow(() => killProcessOnPort(randomPort()));
-  });
-
   it("isPortInUse returns false for a free port", async () => {
     const port = randomPort();
     assert.equal(await isPortInUse(port), false);
@@ -72,7 +68,7 @@ describe("port utilities", () => {
 
   it("isPortInUse returns true while a server is listening", async () => {
     const port = randomPort();
-    const wss = new WebSocketServer({ port });
+    const wss = new WebSocketServer({ port, host: "127.0.0.1" });
     await new Promise<void>((resolve) => wss.once("listening", resolve));
     try {
       assert.equal(await isPortInUse(port), true);
@@ -279,6 +275,7 @@ describe("MCP server lifecycle", () => {
       tools: [],
       resources: [],
       wsPort: port,
+      useBridge: false,
     });
 
     await assert.doesNotReject(async () => {

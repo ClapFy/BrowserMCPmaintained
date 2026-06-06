@@ -1,5 +1,8 @@
 import { WebSocket } from "ws";
 
+import { mcpConfig } from "@/config/mcp.config";
+import { generateRequestId } from "@/utils/id";
+
 import {
   MESSAGE_RESPONSE_TYPE,
   type SocketMessageRequest,
@@ -10,10 +13,10 @@ export function createSocketMessageSender(ws: WebSocket) {
   async function sendSocketMessage<TPayload, TResult>(
     type: string,
     payload: TPayload,
-    options: { timeoutMs?: number } = { timeoutMs: 30_000 },
+    options: { timeoutMs?: number } = { timeoutMs: mcpConfig.defaultRequestTimeoutMs },
   ): Promise<TResult> {
     const { timeoutMs } = options;
-    const id = generateId();
+    const id = generateRequestId();
     const message: SocketMessageRequest<TPayload> = { id, type, payload };
 
     return new Promise((resolve, reject) => {
@@ -86,11 +89,3 @@ function addSocketMessageResponseListener<TResult>(
   return () => ws.off("message", listener);
 }
 
-function generateId(): string {
-  if (typeof globalThis.crypto?.randomUUID === "function") {
-    return globalThis.crypto.randomUUID();
-  }
-  const timestamp = Date.now().toString(36);
-  const randomStr = Math.random().toString(36).substring(2, 10);
-  return `${timestamp}-${randomStr}`;
-}
